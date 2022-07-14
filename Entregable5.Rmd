@@ -1,0 +1,446 @@
+---
+title: "Entregable 5"
+author: "Diego Asencios Ore"
+date: '2022-07-11'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+A) Introducción:
+
+En los últimos años hemos observado como el índice de desarrollo humano ha ido en deceso constantemente, ya sea por la pandemia y las causas relacionadas a la enfermedad. Esto ha causado preocupación en la mayoría de países, pues se han visto afectado por estos sucesos. Entonces, se busca saber cuáles son las variables que influyen directamente en el índice. El método de trabajo
+
+B) Objetivos:
+En el siguiente trabajo presentamos que variables afectan el índice de desarrollo humano. La siguiente data ha sido obtenida en el curso de estadística 1 del año 2020. La hipótesis que proponemos es que el índice de desarrollo humano es afectado directamente por las variables esperanza de vida, el nivel educativo y el gasto público.
+
+C) Explicación de la dependiente y sustentar con literatura las independientes propuestas.
+
+La variable dependiente es IDH_INDEX, trata sobre una calificación de cómo está el desarrollo económico en el mundo. Se propone como dependiente, ya que es la variable que indica el nivel en el cual los países están, siendo de menor a mayor. A mayor numero, mejor idh tiene ese país. 
+
+La esperanza de vida que ahora llamaremos "Esperanza_life" es representada por "Expectativa_hombre" (esperanza de vida del hombre) y "Expectativa_mujer" (esperanza de vida de la mujer). Utilizar la esperanza de vida como un factor que afecta el desarrollo humano es importante pues tener una vida longeva y disponer de salud es el mejor indicativo del desarrollo social de un país. 
+
+El Gasto público del gobierno que ahora llamaremos "Gasto_publico" es representado por "gasto_educacion"y "gasto_salud". Consideramos el gasto público como un factor relevante pues se vincula directamente con el bienestar social. Los recursos asignados del Gobierno pueden mejorar las condiciones de vida sociales mediante distintas políticas públicas enfocadas, por ejemplo, en la salud y en la educación.
+
+El grado de educación de la población que ahora denominaremos "Nivel_Educativo" es representado por "tasa_finalizacion_secundaria", "tasa_finalizacion_primaria"y "tasa_alfabetizacion”. El factor educación es importante porque permite que los individuos puedan desarrollar su máximo potencial y llevar adelante una vida productiva de acuerdo con sus necesidades e intereses. Poseer educación permite la posibilidad de trabajar para acceder a recursos que permitan poseer una vida digna.
+
+
+libreria de base de datos:
+```{r}
+library(rio)
+library(cluster)
+library(factoextra)
+library(plyr)
+library(lavaan)
+library(BBmisc)
+library(GPArotation)
+library(matrixcalc)
+library(psych)
+library(ggcorrplot)
+library(ggplot2)
+library(stargazer)
+library(polycor)
+```
+la base de datos esta en:
+```{r}
+library(rio)
+lkCSV="https://github.com/diegoasencios2010/PC1_EST2/blob/main/Data.xlsx?raw=true"
+human_development=import(lkCSV)
+```
+Renombramos las variables de nuestra base de datos:
+
+```{r}
+names(human_development) = c("Rank", "Country", "Esperanza_vida", "Expected_schooling", "Mean_schooling", "national_income", "Expectativa_hombre", "Expectativa_mujer", "promedio_edad_poblacion", "tasa_alfabetizacion", "edad_promedio_finaliza_secundaria", "tasa_finalizacion_secundaria", "tasa_finalizacion_primaria", "HDI_INDEX", "gasto_educacion","gasto_salud")
+names(human_development)
+```
+Seleccionamos nuestras variabes principales:
+
+```{r}
+Esperanza_life=c("Expectativa_hombre","Expectativa_mujer")
+Nivel_Educativo=c("tasa_finalizacion_secundaria", "tasa_finalizacion_primaria", "tasa_alfabetizacion")
+Gasto_publico=c("gasto_educacion","gasto_salud")
+View(human_development)
+```
+
+#Revisamos Rangos
+
+```{r}
+summary(human_development[,c(Esperanza_life,Gasto_publico, Nivel_Educativo)])
+```
+
+#SITUACIÓN MUNDIAL
+
+Veamos la situación mundial desde el comportamiento de las variables independientes, utilizando análisis de clusters, siguiendo la técnica jerárquica.El primer paso es preparar los datos para el análisis cluster.
+
+```{r}
+data=human_development[,c(Esperanza_life, Gasto_publico, Nivel_Educativo)]
+data=data[sample(nrow(data), 103), ]
+```
+
+Creamos un objeto que concadene los 3 subsets, el cual usaremos en las técnicas de clusterización
+```{r}
+paraCluster=(data[,c(Esperanza_life, Gasto_publico, Nivel_Educativo)])
+```
+
+Se calculan las distancias entre los valores de los casos 
+```{r}
+library(cluster)
+g.dist = daisy(paraCluster, metric="gower")
+```
+Se piden 4 grupos, correspondientes a los 3 subsets, a través de la técnica agnes en un objeto llamado reg.anes. Con este último creamos una nueva columna en el objeto (plaraClustrer) elaborado.
+
+```{r}
+set.seed(123)
+library(factoextra)
+
+res.agnes<- hcut(g.dist, k = 4,hc_func='agnes',hc_method = "ward.D")
+
+data$clustAG=res.agnes$cluster
+```
+
+#Exploramos resultados. Aquí vemos las características en cada cluster. Se ha calculado la media en cada variable para cada clase. 
+
+```{r}
+library(plyr)
+aggregate(cbind(Expectativa_hombre,Expectativa_mujer, tasa_finalizacion_secundaria, tasa_finalizacion_primaria, tasa_alfabetizacion, gasto_educacion, gasto_salud)~ clustAG, data=data,mean)
+```
+•	Se visualiza la forma en que se estructuran los clústeres a través de un dendograma
+```{r}
+fviz_dend(res.agnes, cex = 0.7, horiz = T)
+```
+
+#PREPARACIÓN DE LATENTES
+
+Segun nuestro marco teórico tenemos tres latentes: la esperanza de vida, el nivel educativo y el gasto público.
+
+```{r}
+model1 <- ' Esperanza_life =~ Expectativa_hombre + Expectativa_mujer
+
+Nivel_Educativo =~ tasa_finalizacion_secundaria + tasa_finalizacion_primaria + tasa_alfabetizacion
+
+gasto_publico  =~ gasto_educacion + gasto_salud '
+```
+
+```{r}
+theDataNorm=scale(data)
+library(lavaan)
+```
+```{r}
+cfa_fit <- cfa(model1, data=theDataNorm, 
+           std.lv=TRUE,  
+           missing="fiml")
+```
+
+```{r}
+allParamCFA=parameterEstimates(cfa_fit,standardized = T)
+allFitCFA=as.list(fitMeasures(cfa_fit))
+```
+
+Veamos resultados:
+
+Si cada indicador tiene una buena conexión con su latente (ver p valor):
+
+```{r}
+allParamCFA[allParamCFA$op=="=~",]
+```
+
+Averigüemos qué tan bien salió el modelo:
+
+El ChiSquare es NO significativo? (p_value debe ser mayor a 0.05 para que sea bueno)
+
+```{r}
+allFitCFA[c("chisq", "df", "pvalue")]
+```
+El Índice Tucker Lewi es mayor a 0.9?
+
+```{r}
+allFitCFA$tli
+```
+La Raíz del error cuadrático medio de aproximación es menor a 0.05?
+
+```{r}
+allFitCFA[c('rmsea.ci.lower','rmsea' ,'rmsea.ci.upper')]
+```
+#scores
+
+```{r}
+lavPredict(cfa_fit)
+```
+```{r}
+allScores=as.data.frame(lavPredict(cfa_fit))
+library(BBmisc)
+```
+
+```{r}
+library(lavaan)
+
+human_development$esperanzalife=normalize(lavPredict(cfa_fit),
+                    method = "range", 
+                    margin=2, 
+                    range = c(0, 1))
+human_development$niveleducativo=normalize(lavPredict(cfa_fit),
+                    method = "range", 
+                    margin=2, 
+                    range = c(0, 1))
+human_development$gastopublico=normalize(lavPredict(cfa_fit),
+                    method = "range", 
+                    margin=2, 
+                    range = c(0, 1))
+```
+
+
+#Regresión y prueba de hipotesis
+
+Para hacer el modelo de regresión lineal hemos usado las variables incluídas dentro de los objetos creados (las cuales son nuestras variables principales que afectan el indice de desarrollo humano): "Esperanza_life", "Gasto_publico", "Nivel_Educativo". Así, Esperanza_life es representado por "Expectativa_hombre","Expectativa_mujer". "Gasto_publico" es representado por "gasto_educacion","gasto_salud". "Nivel_Educativo" es representado por "tasa_finalizacion_secundaria", "tasa_finalizacion_primaria", "tasa_alfabetizacion".
+
+```{r}
+NUEVO=human_development[,c("HDI_INDEX", "Expectativa_hombre","Expectativa_mujer",
+"tasa_finalizacion_secundaria", "tasa_finalizacion_primaria", "tasa_alfabetizacion", "gasto_educacion","gasto_salud")]
+```
+
+```{r}
+hipotesis=formula(NUEVO, "HDI_INDEX" ~ "Expectativa_hombre"+"Expectativa_mujer" + 
+"tasa_finalizacion_secundaria"+ "tasa_finalizacion_primaria"+ "tasa_alfabetizacion"+ "gasto_educacion"+"gasto_salud")
+```
+
+
+```{r}
+library(stargazer)
+resultado=lm(formula = hipotesis, data= NUEVO)
+summary(resultado)
+```
+```{r}
+tanova= anova(resultado)
+stargazer(tanova,type = 'text',summary = F,title = "Table de Análisis de Varianza")
+```
+Para confirmar esta hipotesis, debemos realizar algunos diagnósticos adicionales.
+
+Lineablidad:
+```{r}
+plot(resultado, 1)
+```
+Homocedasticidad: se asume que el error del modelo de regresión no afecta la varianza o dispersión de la estimación.
+```{r}
+plot(resultado, 3)
+```
+Test Breusch-Pagan:
+```{r}
+library(lmtest)
+bptest(resultado)
+```
+El p-value de esta prueba es mayor a 0.05, por lo que no se rechaza que el modelo muestra una homocedasticidad entre las variables.
+
+Normalidad de residuos
+```{r}
+plot(resultado, 2)
+```
+
+Test de Shapiro-Wilk con residuales
+```{r}
+shapiro.test(resultado$residuals)
+```
+El p-value en la muestra de shapiro indica que es 0.3122, es decir mayor a 0.05, por lo que significa que no se rechaza que en el modelo existe una normalidad de residuos.
+
+Test de no multicolinedad:
+
+```{r}
+library(DescTools)
+VIF(resultado) 
+```
+Observamos que solo una variable independiente es son mayor a 5, por lo que  existe una correlación entre ellos, es decir, hay problema alguno entre ellos.
+
+Valores influyentes:
+```{r}
+plot(resultado, 5)
+```
+
+índice de Cook y valores predecidos: Existencia de casos influyentes
+```{r}
+checkHip2=as.data.frame(influence.measures(resultado)$is.inf)
+head(checkHip2)
+```
+
+```{r}
+checkHip2[checkHip2$cook.d & checkHip2$hat,]
+```
+
+
+
+#El modelo propuesto aporta 77%.
+
+#CONCLUSIONES
+
+En este trabajo se planteó la hipótesis siguiente:  el índice de desarrollo humano es afectado significatviamente por la esperanza de vida, el nivel educativo y los ingresos.
+
+El resultado nos muestra que tanto el modelo y todas las variables, a excepción del gasto en educación - la cual tendría significancia si el p value se incrementara a 0.1 - son estadísticamente significantes al 0.05 para el modelo de regresión lineal. Este  mismo permite obtener el 77% de los valores de desarrollo humano de los países en la base de datos.
+
+A través del desarrollo de cluster concluimos que es posible clusterizar los datos en 3 grupos. Asimismo, a través del coeficiente de silueta se observa una clusterización exitosa, aunque con valores bajos o medianos, menores a 0.4. En ese sentido, igualmente, a través de las diversas téncias, se recomienda solo 1 clúster. (Análisis Cluster y Anexo 3)
+
+Finalmente, a través del desarrollo de latente exploratorio se concluye que no se soporta 3 variables latentes. Asimismo, no se presenta un buen escenario confirmatorio en el análisis de las 3 variables latentes. Sin embargo, dicho resultado se ve oscurecido por la significancia estadística para el modelo de la variable gasto en educación. (Preparación de Latentes y Anexo 1)
+
+
+#ANEXO 1: EXPLORACIÓN DE LATENTES 
+
+```{r}
+DATS=(data[,c(Esperanza_life, Gasto_publico, Nivel_Educativo)])
+```
+
+
+```{r}
+library(polycor)
+corMatrix=polycor::hetcor(DATS)$correlations
+```
+```{r}
+library(ggcorrplot)
+ggcorrplot(corMatrix)
+```
+
+```{r}
+library(psych)
+psych::KMO(corMatrix)
+```
+# Verificar si la matriz de correlaciones es adecuada
+
+```{r}
+cortest.bartlett(corMatrix,n=nrow(data))$p.value>0.05
+```
+```{r}
+library(matrixcalc)
+
+is.singular.matrix(corMatrix)
+```
+```{r}
+fa.parallel(data,fm = 'ML', fa = 'fa',correct = T)
+
+```
+
+```{r}
+library(GPArotation)
+resfa <- fa(DATS,
+            nfactors = 3,
+            cor = 'mixed',
+            rotate = "varimax",
+            fm="minres")
+print(resfa$loadings)
+```
+```{r}
+print(resfa$loadings,cutoff = 0.15)
+```
+```{r}
+fa.diagram(resfa)
+```
+
+
+#ANEXO 2: JUSTIFICACIÓN DE USO DE PACKAGES
+
+a) RIO= Tiene funcionalidad de importar y exportar datos de diferentes formatos. Como excel y SPSS. Ademas, que sirve para poder leer estos.
+
+Cluster= Sirve para poder analizar conjuntos conglomerados agrupando los datos de manera homogenea dentro de diferentes grupos con similares varianzas. Nos sirve par facilitarnos y precisar mejor las analisis sobre estos datos 
+
+Factoextra= Sirve para la visualizacion y graficacion de los resultados de las multivariables.
+
+Plyr= Es una herramientas para dividir, aplicar y combinar datos
+
+Lavaan= Sirve para el analisis de las variables latentes 
+
+BBmisc= Sirve para traer funciones auxiliares diversas para B.Bisch
+
+GPArotation= Es el GPA factor de rotacion 
+
+matrixcalc= Para traer una colección de funciones para cálculos matriciales
+
+Psych= Procedimientos para la investigación psicológica, psicométrica y de personalidad
+
+ggcorrplot= Para la visualizacion de la correlacion en la matrix, se usa ggplot2
+
+polycor= Para analizar las correlaciones policóricas y poliseriales
+ 
+stargazer= Tablas de estadísticas resumidas y de regresión bien formateadas 
+
+ggplot2= Crea formas elegantes de poder observar la data
+
+#ANEXO 3: EXPLORACIÓN DE CLUSTERS
+
+```{r}
+paraCluster=(data[,c(Esperanza_life, Gasto_publico, Nivel_Educativo)])
+```
+
+```{r}
+boxplot(paraCluster[,c(Esperanza_life, Gasto_publico, Nivel_Educativo)],horizontal=T,las=2,cex.axis=0.3)
+```
+```{r}
+boxplot(scale(paraCluster[,c(Esperanza_life, Gasto_publico, Nivel_Educativo)]),horizontal=T,las=2,cex.axis=0.3)
+```
+
+```{r}
+boxplot(log(paraCluster[,c(Esperanza_life, Gasto_publico, Nivel_Educativo)]),horizontal=T,las=2,cex.axis=0.3)
+```
+
+```{r}
+library(cluster)
+set.seed(123)
+g.dist = daisy(paraCluster[,], metric="gower")
+```
+
+PAM
+
+```{r}
+set.seed(123)
+library(factoextra)
+fviz_nbclust(paraCluster, pam,diss=g.dist,method = "gap_stat",k.max = 10,verbose = F)
+```
+
+JEÁRQUICO - DIANA
+
+```{r}
+set.seed(123)
+fviz_nbclust(paraCluster, hcut,diss=g.dist,method = "gap_stat",k.max = 10,verbose = F,hc_func = "agnes")
+```
+
+Jerárquico Agnes
+
+```{r}
+set.seed(123)
+fviz_nbclust(paraCluster, hcut,diss=g.dist,method = "gap_stat",k.max = 10,verbose = F,hc_func = "diana")
+```
+
+```{r}
+set.seed(123)
+SUGERIDOS=3
+res.pam=pam(g.dist,k = SUGERIDOS,cluster.only = F)
+res.agnes <- hcut(g.dist, k = SUGERIDOS,hc_func='agnes')
+res.diana <- hcut(g.dist, k = SUGERIDOS,hc_func='diana')
+
+fviz_silhouette(res.pam)
+fviz_silhouette(res.agnes)
+fviz_silhouette(res.diana)
+```
+
+Bibliografia:
+
+Educacion:
+
+1) López Segrera, Francisco. Notas para un estudio comparado de la educación superior a nivel mundial. En
+publicacion: Escenarios mundiales de la educación superior. Análisis global y estudios de casos. López Segrera,
+Francisco. CLACSO, Consejo Latinoamericno de Ciencias Sociales. Noviembre 2007 ISBN 978-987-1183-61-6
+
+2) Pandemia y educación superior. Rev. educ. sup [online]. 2020, vol.49, n.194, pp.1-8.  Epub 27-Nov-2020. ISSN 0185-2760.  https://doi.org/10.36857/resu.2020.194.1120.
+
+3)Sánchez, M. C., & Araya, R. G. (2012). Desafíos de la educación en la sociedad actual. Diálogos educativos, (24), 55-69.
+
+Gasto publico:
+4)Mundial, B., & de Desarrollo, B. I. (2007). Informe sobre el gasto público. Tegucigalpa: Banco Mundial, Departamento de América Central.
+
+5)Mundial, B. (1990). Informe sobre el desarrollo mundial 1990: la pobreza. Resumen.
+
+6)Jiménez, C., & Flores-Chamba, J. (2021). Desigualdad y gasto público a nivel mundial: Un estudio con datos y metodologías de panel. Revista Económica, 9(2), 43-54.
+
+Esperanza de vida:
+
+7)Montes de Oca, V. (2003). El envejecimiento en el debate mundial: reflexión académica y política. Papeles de población, 9(35), 77-100.
+
+8)Mundial, B. (1992). La medición de la pobreza. Comercio exterior, 42(4), 323-325.
+
+9)Zibechi, R. (2020). A las puertas de un nuevo orden mundial. Sopa de Wuhan. Pensamiento contemporáneo en tiempos de pandemias, 113-118.
