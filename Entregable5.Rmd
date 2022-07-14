@@ -70,7 +70,7 @@ View(human_development)
 summary(human_development[,c(Esperanza_life,Gasto_publico, Nivel_Educativo)])
 ```
 
-#SITUACIÓN MUNDIAL
+e)SITUACIÓN MUNDIAL
 
 Veamos la situación mundial desde el comportamiento de las variables independientes, utilizando análisis de clusters, siguiendo la técnica jerárquica.El primer paso es preparar los datos para el análisis cluster.
 
@@ -191,7 +191,7 @@ human_development$gastopublico=normalize(lavPredict(cfa_fit),
 ```
 
 
-#Regresión y prueba de hipotesis
+d)Regresión y prueba de hipotesis
 
 Para hacer el modelo de regresión lineal hemos usado las variables incluídas dentro de los objetos creados (las cuales son nuestras variables principales que afectan el indice de desarrollo humano): "Esperanza_life", "Gasto_publico", "Nivel_Educativo". Así, Esperanza_life es representado por "Expectativa_hombre","Expectativa_mujer". "Gasto_publico" es representado por "gasto_educacion","gasto_salud". "Nivel_Educativo" es representado por "tasa_finalizacion_secundaria", "tasa_finalizacion_primaria", "tasa_alfabetizacion".
 
@@ -270,7 +270,7 @@ checkHip2[checkHip2$cook.d & checkHip2$hat,]
 
 #El modelo propuesto aporta 77%.
 
-#CONCLUSIONES
+f)CONCLUSIONES
 
 En este trabajo se planteó la hipótesis siguiente:  el índice de desarrollo humano es afectado significatviamente por la esperanza de vida, el nivel educativo y los ingresos.
 
@@ -281,7 +281,7 @@ A través del desarrollo de cluster concluimos que es posible clusterizar los da
 Finalmente, a través del desarrollo de latente exploratorio se concluye que no se soporta 3 variables latentes. Asimismo, no se presenta un buen escenario confirmatorio en el análisis de las 3 variables latentes. Sin embargo, dicho resultado se ve oscurecido por la significancia estadística para el modelo de la variable gasto en educación. (Preparación de Latentes y Anexo 1)
 
 
-#ANEXO 1: EXPLORACIÓN DE LATENTES 
+g)ANEXO 1: EXPLORACIÓN DE LATENTES 
 
 ```{r}
 DATS=(data[,c(Esperanza_life, Gasto_publico, Nivel_Educativo)])
@@ -418,7 +418,7 @@ fviz_silhouette(res.agnes)
 fviz_silhouette(res.diana)
 ```
 
-Bibliografia:
+h) Bibliografia:
 
 Educacion:
 
